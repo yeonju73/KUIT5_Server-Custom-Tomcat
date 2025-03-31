@@ -10,7 +10,7 @@
         <option name="gradleJvm" value="21" />
         <option name="modules">
           <set>
-            <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/../../../건4-1/런쉐/KUIT5_Server-Custom-Tomcat" />
           </set>
         </option>
       </GradleProjectSettings>
