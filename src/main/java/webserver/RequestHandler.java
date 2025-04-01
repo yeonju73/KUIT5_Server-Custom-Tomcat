@@ -2,6 +2,7 @@ package webserver;
 
 import db.MemoryUserRepository;
 import http.util.HttpRequestUtils;
+import http.util.IOUtils;
 import model.User;
 
 import java.io.*;
@@ -28,22 +29,11 @@ public class RequestHandler implements Runnable{
             DataOutputStream dos = new DataOutputStream(out);
 
             String[] tokens = br.readLine().split(" ");
+            System.out.println(tokens[0] + " " + tokens[1]);
 
+            // 요구사항 1: index.html 반환하기
             if (tokens[1].equals("/")){
                 tokens[1] = "/index.html";
-            }
-
-            if (tokens[1].startsWith("/user/signup")){
-                String[] query = tokens[1].split("\\?");
-
-                Map<String, String> userInfoMap = HttpRequestUtils.parseQueryParameter(query[1]);
-
-                MemoryUserRepository memoryUserRepository = MemoryUserRepository.getInstance();
-                User newUser = new User(userInfoMap.get("userId"), userInfoMap.get("password"), userInfoMap.get("name"), userInfoMap.get("email"));
-                memoryUserRepository.addUser(newUser);
-
-                response302Header(dos, "/index.html");
-                return;
             }
 
             if (tokens[1].endsWith(".html")){
@@ -57,6 +47,40 @@ public class RequestHandler implements Runnable{
                     log.log(Level.SEVERE, e.getMessage());
                     response404Header(dos); // 파일이 없을 경우 404 응답
                 }
+            }
+
+            // 요구사항 2: GET 방식으로 회원가입하기
+            if (tokens[0].equals("GET") && tokens[1].startsWith("/user/signup")){
+                String[] query = tokens[1].split("\\?");
+
+                Map<String, String> userInfoMap = HttpRequestUtils.parseQueryParameter(query[1]);
+
+                MemoryUserRepository memoryUserRepository = MemoryUserRepository.getInstance();
+                User newUser = new User(userInfoMap.get("userId"), userInfoMap.get("password"), userInfoMap.get("name"), userInfoMap.get("email"));
+                memoryUserRepository.addUser(newUser);
+
+                response302Header(dos, "/index.html");
+                return;
+            }
+
+            // 요구사항 3: POST 방식으로 회원가입하기
+            if (tokens[0].equals("POST") && tokens[1].equals("/user/signup")){
+
+                String headerLine;
+                int contentLength = 0;
+                while (!(headerLine = br.readLine()).isEmpty()) {
+                    if (headerLine.startsWith("Content-Length:"))
+                        contentLength = Integer.parseInt(headerLine.split(": ")[1]);
+                }
+
+                String requestBody = IOUtils.readData(br, contentLength);
+                Map<String, String> userInfoMap = HttpRequestUtils.parseQueryParameter(requestBody);
+
+                MemoryUserRepository memoryUserRepository = MemoryUserRepository.getInstance();
+                User newUser = new User(userInfoMap.get("userId"), userInfoMap.get("password"), userInfoMap.get("name"), userInfoMap.get("email"));
+                memoryUserRepository.addUser(newUser);
+
+                response302Header(dos, "/index.html");
             }
 
         } catch (IOException e) {
