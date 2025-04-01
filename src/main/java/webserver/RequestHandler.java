@@ -1,9 +1,14 @@
 package webserver;
 
+import db.MemoryUserRepository;
+import http.util.HttpRequestUtils;
+import model.User;
+
 import java.io.*;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -23,13 +28,38 @@ public class RequestHandler implements Runnable{
             DataOutputStream dos = new DataOutputStream(out);
 
             String[] tokens = br.readLine().split(" ");
-            if (tokens[1].equals("/"))
-                tokens[1] = "/index.html";
-            String filePath = "webapp" + tokens[1];
-            byte[] body = Files.readAllBytes(Paths.get(filePath));
 
-            response200Header(dos, body.length);
-            responseBody(dos, body);
+            if (tokens[1].equals("/")){
+                tokens[1] = "/index.html";
+                System.out.println(tokens[1]);
+            }
+
+            if (tokens[1].startsWith("/user/signup")){
+                String[] query = tokens[1].split("\\?");
+
+                System.out.println(query[1]);
+                Map<String, String> map = HttpRequestUtils.parseQueryParameter(query[1]);
+
+                MemoryUserRepository memoryUserRepository = MemoryUserRepository.getInstance();
+                User newUser = new User(map.get("userId"), map.get("password"), map.get("name"), map.get("email"));
+                memoryUserRepository.addUser(newUser);
+
+                response302Header(dos, "/index.html");
+                return;
+            }
+
+            if (tokens[1].endsWith(".html")){
+                String filePath = "webapp" + tokens[1];
+
+                try {
+                    byte[] body = Files.readAllBytes(Paths.get(filePath));
+                    response200Header(dos, body.length);
+                    responseBody(dos, body);
+                } catch (IOException e) {
+                    log.log(Level.SEVERE, e.getMessage());
+                    response404Header(dos); // 파일이 없을 경우 404 응답
+                }
+            }
 
         } catch (IOException e) {
             log.log(Level.SEVERE,e.getMessage());
@@ -42,6 +72,30 @@ public class RequestHandler implements Runnable{
             dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
             dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
             dos.writeBytes("\r\n");
+        } catch (IOException e) {
+            log.log(Level.SEVERE, e.getMessage());
+        }
+    }
+
+    private void response302Header(DataOutputStream dos, String location) {
+        try {
+            dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
+            dos.writeBytes("Location: " + location + "\r\n");
+            dos.writeBytes("\r\n");
+        } catch (IOException e) {
+            log.log(Level.SEVERE, e.getMessage());
+        }
+    }
+
+    private void response404Header(DataOutputStream dos) {
+        try {
+            String responseBody = "<h1>404 Not Found</h1>";
+            dos.writeBytes("HTTP/1.1 404 Not Found\r\n");
+            dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
+            dos.writeBytes("Content-Length: " + responseBody.length() + "\r\n");
+            dos.writeBytes("\r\n");
+            dos.writeBytes(responseBody);
+            dos.flush();
         } catch (IOException e) {
             log.log(Level.SEVERE, e.getMessage());
         }
