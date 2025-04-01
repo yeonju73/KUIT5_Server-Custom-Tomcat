@@ -31,17 +31,15 @@ public class RequestHandler implements Runnable{
 
             if (tokens[1].equals("/")){
                 tokens[1] = "/index.html";
-                System.out.println(tokens[1]);
             }
 
             if (tokens[1].startsWith("/user/signup")){
                 String[] query = tokens[1].split("\\?");
 
-                System.out.println(query[1]);
-                Map<String, String> map = HttpRequestUtils.parseQueryParameter(query[1]);
+                Map<String, String> userInfoMap = HttpRequestUtils.parseQueryParameter(query[1]);
 
                 MemoryUserRepository memoryUserRepository = MemoryUserRepository.getInstance();
-                User newUser = new User(map.get("userId"), map.get("password"), map.get("name"), map.get("email"));
+                User newUser = new User(userInfoMap.get("userId"), userInfoMap.get("password"), userInfoMap.get("name"), userInfoMap.get("email"));
                 memoryUserRepository.addUser(newUser);
 
                 response302Header(dos, "/index.html");
@@ -77,10 +75,10 @@ public class RequestHandler implements Runnable{
         }
     }
 
-    private void response302Header(DataOutputStream dos, String location) {
+    private void response302Header(DataOutputStream dos, String path) {
         try {
             dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
-            dos.writeBytes("Location: " + location + "\r\n");
+            dos.writeBytes("Location: " + path + "\r\n");
             dos.writeBytes("\r\n");
         } catch (IOException e) {
             log.log(Level.SEVERE, e.getMessage());
