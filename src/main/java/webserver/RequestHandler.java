@@ -83,6 +83,31 @@ public class RequestHandler implements Runnable{
                 response302Header(dos, "/index.html");
             }
 
+            // 요구사항 5: 로그인하기
+            if (tokens[0].equals("POST") && tokens[1].equals("/user/login")){
+                String headerLine;
+                int contentLength = 0;
+                while (!(headerLine = br.readLine()).isEmpty()) {
+                    if (headerLine.startsWith("Content-Length:"))
+                        contentLength = Integer.parseInt(headerLine.split(": ")[1]);
+                }
+
+                String requestBody = IOUtils.readData(br, contentLength);
+
+                Map<String, String> loginInfoMap = HttpRequestUtils.parseQueryParameter(requestBody);
+
+                MemoryUserRepository memoryUserRepository = MemoryUserRepository.getInstance();
+                User findUser = memoryUserRepository.findUserById(loginInfoMap.get("userId"));
+
+                if (findUser != null && findUser.getPassword().equals(loginInfoMap.get("password"))){
+                    response302Header(dos, "/index.html", "logined=true");
+                    return;
+                }
+                response302Header(dos, "/user/logined_failed.html");
+
+            }
+
+
         } catch (IOException e) {
             log.log(Level.SEVERE,e.getMessage());
         }
@@ -103,6 +128,17 @@ public class RequestHandler implements Runnable{
         try {
             dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
             dos.writeBytes("Location: " + path + "\r\n");
+            dos.writeBytes("\r\n");
+        } catch (IOException e) {
+            log.log(Level.SEVERE, e.getMessage());
+        }
+    }
+
+    private void response302Header(DataOutputStream dos, String path, String cookie) {
+        try {
+            dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
+            dos.writeBytes("Location: " + path + "\r\n");
+            dos.writeBytes("Set-Cookie: " + cookie + "\r\n");
             dos.writeBytes("\r\n");
         } catch (IOException e) {
             log.log(Level.SEVERE, e.getMessage());
