@@ -104,9 +104,32 @@ public class RequestHandler implements Runnable{
                     return;
                 }
                 response302Header(dos, "/user/logined_failed.html");
-
             }
 
+            // 요구사항 6: 사용자 목록 출력
+            if (tokens[0].equals("GET") && tokens[1].equals("/user/userList")){
+                String headerLine;
+                String cookie;
+
+                while (!(headerLine = br.readLine()).isEmpty()) {
+                    if (headerLine.startsWith("Cookie:")){
+                        cookie = headerLine.split(": ")[1];
+
+                        if (cookie.contains("logined=true")){
+
+                            byte[] body = Files.readAllBytes(Paths.get("webapp/user/list.html"));
+                            response200Header(dos, body.length);
+                            responseBody(dos, body);
+
+                            return;
+                        }
+                        // 쿠키의 값이 logined=true 이 아닐때
+                        response302Header(dos, "/index.html");
+                    }
+                }
+                // 쿠키를 발견하지 못했을때
+                response302Header(dos, "/index.html");
+            }
 
         } catch (IOException e) {
             log.log(Level.SEVERE,e.getMessage());
