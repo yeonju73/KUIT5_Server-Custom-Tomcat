@@ -29,7 +29,6 @@ public class RequestHandler implements Runnable{
             DataOutputStream dos = new DataOutputStream(out);
 
             String[] tokens = br.readLine().split(" ");
-            System.out.println(tokens[0] + " " + tokens[1]);
 
             // 요구사항 1: index.html 반환하기
             if (tokens[1].equals("/")){
@@ -162,6 +161,7 @@ public class RequestHandler implements Runnable{
         }
     }
 
+    // 메소드 오버로딩: 같은 클래스 내에서, 같은 이름의 메소드를 매개변수의 타입이나 수가 다르게 설정
     private void response200Header(DataOutputStream dos, int lengthOfBodyContent, String contentType) {
         try {
             dos.writeBytes("HTTP/1.1 200 OK \r\n");
