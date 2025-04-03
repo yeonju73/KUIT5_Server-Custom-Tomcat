@@ -47,6 +47,7 @@ public class RequestHandler implements Runnable{
                     log.log(Level.SEVERE, e.getMessage());
                     response404Header(dos); // 파일이 없을 경우 404 응답
                 }
+                return;
             }
 
             // 요구사항 2: GET 방식으로 회원가입하기
@@ -131,6 +132,20 @@ public class RequestHandler implements Runnable{
                 response302Header(dos, "/index.html");
             }
 
+            // 요구사항 7: CSS 출력
+            if (tokens[1].endsWith(".css")){
+                String filePath = "webapp" + tokens[1];
+
+                try {
+                    byte[] body = Files.readAllBytes(Paths.get(filePath));
+                    response200Header(dos, body.length, "text/css");
+                    responseBody(dos, body);
+                } catch (IOException e) {
+                    log.log(Level.SEVERE, e.getMessage());
+                    response404Header(dos); // 파일이 없을 경우 404 응답
+                }
+            }
+
         } catch (IOException e) {
             log.log(Level.SEVERE,e.getMessage());
         }
@@ -140,6 +155,17 @@ public class RequestHandler implements Runnable{
         try {
             dos.writeBytes("HTTP/1.1 200 OK \r\n");
             dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
+            dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
+            dos.writeBytes("\r\n");
+        } catch (IOException e) {
+            log.log(Level.SEVERE, e.getMessage());
+        }
+    }
+
+    private void response200Header(DataOutputStream dos, int lengthOfBodyContent, String contentType) {
+        try {
+            dos.writeBytes("HTTP/1.1 200 OK \r\n");
+            dos.writeBytes("Content-Type: " + contentType + "\r\n");
             dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
             dos.writeBytes("\r\n");
         } catch (IOException e) {
