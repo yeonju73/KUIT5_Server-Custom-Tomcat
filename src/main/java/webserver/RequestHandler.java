@@ -1,6 +1,7 @@
 package webserver;
 
 import db.MemoryUserRepository;
+import db.Repository;
 import http.util.HttpRequestUtils;
 import http.util.IOUtils;
 import model.User;
@@ -25,9 +26,11 @@ import static enums.URL.*;
 public class RequestHandler implements Runnable{
     Socket connection;
     private static final Logger log = Logger.getLogger(RequestHandler.class.getName());
+    private final Repository repository;
 
     public RequestHandler(Socket connection) {
         this.connection = connection;
+        this.repository = MemoryUserRepository.getInstance();
     }
 
     @Override
@@ -64,9 +67,8 @@ public class RequestHandler implements Runnable{
 
                 Map<String, String> userInfoMap = HttpRequestUtils.parseQueryParameter(query[1]);
 
-                MemoryUserRepository memoryUserRepository = MemoryUserRepository.getInstance();
                 User newUser = new User(userInfoMap.get(USERID.getKey()), userInfoMap.get(PASSWORD.getKey()), userInfoMap.get(NAME.getKey()), userInfoMap.get(EMAIL.getKey()));
-                memoryUserRepository.addUser(newUser);
+                repository.addUser(newUser);
 
                 response302Header(dos, INDEX_HTML.getPath());
                 return;
@@ -85,9 +87,8 @@ public class RequestHandler implements Runnable{
                 String requestBody = IOUtils.readData(br, contentLength);
                 Map<String, String> userInfoMap = HttpRequestUtils.parseQueryParameter(requestBody);
 
-                MemoryUserRepository memoryUserRepository = MemoryUserRepository.getInstance();
                 User newUser = new User(userInfoMap.get(USERID.getKey()), userInfoMap.get(PASSWORD.getKey()), userInfoMap.get(NAME.getKey()), userInfoMap.get(EMAIL.getKey()));
-                memoryUserRepository.addUser(newUser);
+                repository.addUser(newUser);
 
                 response302Header(dos, INDEX_HTML.getPath());
             }
