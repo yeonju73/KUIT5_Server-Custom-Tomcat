@@ -1,7 +1,7 @@
 package http.webserver;
 
 import org.junit.jupiter.api.Test;
-import webserver.HttpRequest;
+import http.HttpRequest;
 
 import java.io.BufferedReader;
 import java.io.IOException;

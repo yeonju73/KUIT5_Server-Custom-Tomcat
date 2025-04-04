@@ -1,4 +1,4 @@
-package webserver;
+package http;
 
 import enums.HttpHeaderMessage;
 import enums.Path;
