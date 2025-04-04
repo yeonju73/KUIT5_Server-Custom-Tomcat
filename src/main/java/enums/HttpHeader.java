@@ -17,4 +17,8 @@ public enum HttpHeader {
         return header;
     }
 
+    public String getSplitHeader() {
+        return header.split(": ")[0];
+    }
+
 }

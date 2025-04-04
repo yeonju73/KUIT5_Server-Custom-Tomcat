@@ -2,8 +2,6 @@ package webserver;
 
 import db.MemoryUserRepository;
 import db.Repository;
-import http.util.HttpRequestUtils;
-import http.util.IOUtils;
 import model.User;
 
 import java.io.*;
@@ -19,7 +17,6 @@ import static enums.HttpHeaderMessage.*;
 import static enums.HttpMethod.*;
 import static enums.Path.*;
 import static enums.QueryKey.*;
-import static enums.SplitRegex.*;
 import static enums.StatusCode.*;
 import static enums.URL.*;
 
@@ -40,15 +37,27 @@ public class RequestHandler implements Runnable{
             BufferedReader br = new BufferedReader(new InputStreamReader(in));
             DataOutputStream dos = new DataOutputStream(out);
 
-            String[] tokens = br.readLine().split(" ");
+            //String[] tokens = br.readLine().split(" ");
+            HttpRequest httpRequest = HttpRequest.from(br);
 
             // 요구사항 1: index.html 반환하기
-            if (tokens[1].equals("/")){
-                tokens[1] = INDEX_HTML.getPath();
+            if (httpRequest.getUrl().equals("/")){
+                String filePath = FILE_DIR.getPath() + INDEX_HTML.getPath();
+
+                try {
+                    byte[] body = Files.readAllBytes(Paths.get(filePath));
+                    response200Header(dos, body.length);
+                    responseBody(dos, body);
+                } catch (IOException e) {
+                    log.log(Level.SEVERE, e.getMessage());
+                    response404Header(dos); // 파일이 없을 경우 404 응답
+                }
+
+                return;
             }
 
-            if (tokens[1].endsWith(".html")){
-                String filePath = FILE_DIR.getPath() + tokens[1];
+            if (httpRequest.getUrl().endsWith(".html")){
+                String filePath = FILE_DIR.getPath() + httpRequest.getUrl();
 
                 try {
                     byte[] body = Files.readAllBytes(Paths.get(filePath));
@@ -62,11 +71,9 @@ public class RequestHandler implements Runnable{
             }
 
             // 요구사항 2: GET 방식으로 회원가입하기
-            if (tokens[0].equals(GET.toString()) && tokens[1].startsWith(REGISTER_URL.getUrl())){
-                String[] query = tokens[1].split(QUERY_SPLIT.getRegex());
+            if (httpRequest.getMethod().equals(GET.toString()) && httpRequest.getUrl().startsWith(REGISTER_URL.getUrl())){
 
-                Map<String, String> userInfoMap = HttpRequestUtils.parseQueryParameter(query[1]);
-
+                Map<String, String> userInfoMap = httpRequest.getQueryMap();
                 User newUser = new User(userInfoMap.get(USERID.getKey()), userInfoMap.get(PASSWORD.getKey()), userInfoMap.get(NAME.getKey()), userInfoMap.get(EMAIL.getKey()));
                 repository.addUser(newUser);
 
@@ -75,41 +82,20 @@ public class RequestHandler implements Runnable{
             }
 
             // 요구사항 3: POST 방식으로 회원가입하기
-            if (tokens[0].equals(POST.toString()) && tokens[1].equals(REGISTER_URL.getUrl())){
+            if (httpRequest.getMethod().equals(POST.toString()) && httpRequest.getUrl().equals(REGISTER_URL.getUrl())){
 
-                String headerLine;
-                int contentLength = 0;
-                while (!(headerLine = br.readLine()).isEmpty()) {
-                    if (headerLine.startsWith(CONTENT_LENGTH.getHeader()))
-                        contentLength = Integer.parseInt(headerLine.split(HEADER_SPLIT.getRegex())[1]);
-                }
-
-                String requestBody = IOUtils.readData(br, contentLength);
-                Map<String, String> userInfoMap = HttpRequestUtils.parseQueryParameter(requestBody);
-
-                User newUser = new User(userInfoMap.get(USERID.getKey()), userInfoMap.get(PASSWORD.getKey()), userInfoMap.get(NAME.getKey()), userInfoMap.get(EMAIL.getKey()));
+                User newUser = new User(httpRequest.getBodyValue(USERID.getKey()), httpRequest.getBodyValue(PASSWORD.getKey()), httpRequest.getBodyValue(NAME.getKey()), httpRequest.getBodyValue(EMAIL.getKey()));
                 repository.addUser(newUser);
 
                 response302Header(dos, INDEX_HTML.getPath());
             }
 
             // 요구사항 5: 로그인하기
-            if (tokens[0].equals(POST.toString()) && tokens[1].equals(LOGIN_URL.getUrl())){
-                String headerLine;
-                int contentLength = 0;
-                while (!(headerLine = br.readLine()).isEmpty()) {
-                    if (headerLine.startsWith(CONTENT_LENGTH.getHeader()))
-                        contentLength = Integer.parseInt(headerLine.split(HEADER_SPLIT.getRegex())[1]);
-                }
+            if (httpRequest.getMethod().equals(POST.toString()) && httpRequest.getUrl().equals(LOGIN_URL.getUrl())){
 
-                String requestBody = IOUtils.readData(br, contentLength);
+                User findUser = repository.findUserById(httpRequest.getBodyValue(USERID.getKey()));
 
-                Map<String, String> loginInfoMap = HttpRequestUtils.parseQueryParameter(requestBody);
-
-                MemoryUserRepository memoryUserRepository = MemoryUserRepository.getInstance();
-                User findUser = memoryUserRepository.findUserById(loginInfoMap.get(USERID.getKey()));
-
-                if (findUser != null && findUser.getPassword().equals(loginInfoMap.get(PASSWORD.getKey()))){
+                if (findUser != null && findUser.getPassword().equals(httpRequest.getBodyValue(PASSWORD.getKey()))){
                     response302Header(dos, INDEX_HTML.getPath(), COOKIE_LOGIN.getMessage());
                     return;
                 }
@@ -117,33 +103,24 @@ public class RequestHandler implements Runnable{
             }
 
             // 요구사항 6: 사용자 목록 출력
-            if (tokens[0].equals(GET.toString()) && tokens[1].equals(USER_LIST_URL.getUrl())){
-                String headerLine;
-                String cookie;
+            if (httpRequest.getMethod().equals(GET.toString()) && httpRequest.getUrl().equals(USER_LIST_URL.getUrl())){
+                String cookie = httpRequest.getCookie();
 
-                while (!(headerLine = br.readLine()).isEmpty()) {
-                    if (headerLine.startsWith(COOKIE.getHeader())){
-                        cookie = headerLine.split(HEADER_SPLIT.getRegex())[1];
+                if (cookie != null && cookie.contains(COOKIE_LOGIN.getMessage())){
 
-                        if (cookie.contains(COOKIE_LOGIN.getMessage())){
+                    byte[] body = Files.readAllBytes(Paths.get(FILE_DIR.getPath() + USER_LIST_HTML.getPath()));
+                    response200Header(dos, body.length);
+                    responseBody(dos, body);
 
-                            byte[] body = Files.readAllBytes(Paths.get(FILE_DIR.getPath() + USER_LIST_HTML.getPath()));
-                            response200Header(dos, body.length);
-                            responseBody(dos, body);
-
-                            return;
-                        }
-                        // 쿠키의 값이 logined=true 이 아닐때
-                        response302Header(dos, INDEX_HTML.getPath());
-                    }
+                    return;
                 }
-                // 쿠키를 발견하지 못했을때
+
                 response302Header(dos, INDEX_HTML.getPath());
             }
 
             // 요구사항 7: CSS 출력
-            if (tokens[1].endsWith(".css")){
-                String filePath = FILE_DIR.getPath() + tokens[1];
+            if (httpRequest.getUrl().endsWith(".css")){
+                String filePath = FILE_DIR.getPath() + httpRequest.getUrl();
 
                 try {
                     byte[] body = Files.readAllBytes(Paths.get(filePath));
